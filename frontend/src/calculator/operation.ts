@@ -6,3 +6,9 @@ export interface Operation {
   operation: Operator
   operands: number[]
 }
+
+/** An Operator as advertised by the service: its name and how many Operands it takes. */
+export interface OperatorInfo {
+  name: string
+  arity: number
+}
