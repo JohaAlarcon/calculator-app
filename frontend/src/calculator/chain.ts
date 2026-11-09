@@ -1,5 +1,11 @@
 import { isAdditive, OPERATOR_SYMBOLS, type BinaryOperator, type Operation } from './operation'
 
+/** The most recently completed Operation's Operator and right Operand, re-applied by a repeated =. */
+export interface LastOperation {
+  operator: BinaryOperator
+  rightOperand: number
+}
+
 /** The Pending Operation's known half: its left Operand and Operator. */
 export interface Pending {
   leftOperand: number
@@ -24,6 +30,11 @@ export interface ChainState {
   entry: string
   /** The Pending Operation, or null when none is pending. */
   pending: Pending | null
+  /**
+   * Re-applied to the current Result when = is pressed with nothing pending. Set by each =;
+   * forgotten by a digit, the decimal point or an Operator (see FORGETS_LAST_OPERATION) and by C.
+   */
+  lastOperation: LastOperation | null
   /** What the entry is, which decides what the next key does with it. */
   entryPhase: EntryPhase
   /** True while an Operation is with the service; the keypad is locked meanwhile. */
@@ -42,7 +53,8 @@ export type ChainAction =
   | { type: 'continueChain'; result: number; operator: BinaryOperator }
   /** % was applied: `result` becomes the (right) Operand on the display. */
   | { type: 'percentApplied'; result: number }
-  | { type: 'result'; result: number }
+  /** = produced `result`; `lastOperation` is what it applied, re-applied by the next =. */
+  | { type: 'result'; result: number; lastOperation: LastOperation }
   | { type: 'requestStarted' }
   /** The Operation failed; the Chain before it is preserved. */
   | { type: 'failed'; message: string }
@@ -51,6 +63,7 @@ export type ChainAction =
 export const initialChain: ChainState = {
   entry: '0',
   pending: null,
+  lastOperation: null,
   entryPhase: 'typing',
   awaitingResult: false,
   error: null,
@@ -59,8 +72,19 @@ export const initialChain: ChainState = {
 /** While an error is shown, these keys do nothing (so no input is dropped silently). */
 const IGNORED_WHILE_ERROR: ReadonlySet<ChainAction['type']> = new Set(['operator', 'toggleSign', 'backspace'])
 
+/**
+ * Keys that leave the current Result behind: typing a number (after a Result, that starts a
+ * fresh Chain) or pressing an Operator. A later = then has no Last Operation to repeat.
+ */
+const FORGETS_LAST_OPERATION: ReadonlySet<ChainAction['type']> = new Set(['digit', 'decimalPoint', 'operator'])
+
 export function chainReducer(current: ChainState, action: ChainAction): ChainState {
   if (current.error !== null && IGNORED_WHILE_ERROR.has(action.type)) return current
+  const next = applyKey(current, action)
+  return FORGETS_LAST_OPERATION.has(action.type) && next.lastOperation !== null ? { ...next, lastOperation: null } : next
+}
+
+function applyKey(current: ChainState, action: ChainAction): ChainState {
   // A digit, the decimal point, C or a retried = dismisses the error; the Chain underneath is intact.
   const state = current.error === null || action.type === 'failed' ? current : { ...current, error: null }
   switch (action.type) {
@@ -103,7 +127,14 @@ export function chainReducer(current: ChainState, action: ChainAction): ChainSta
     case 'percentApplied':
       return { ...state, entry: String(action.result), entryPhase: 'showingValue', awaitingResult: false }
     case 'result':
-      return { ...state, entry: String(action.result), pending: null, entryPhase: 'showingValue', awaitingResult: false }
+      return {
+        ...state,
+        entry: String(action.result),
+        pending: null,
+        lastOperation: action.lastOperation,
+        entryPhase: 'showingValue',
+        awaitingResult: false,
+      }
     case 'requestStarted':
       return { ...state, awaitingResult: true }
     case 'failed':
@@ -111,6 +142,32 @@ export function chainReducer(current: ChainState, action: ChainAction): ChainSta
     case 'clear':
       return initialChain
   }
+}
+
+/** What = sends, and the Last Operation it establishes for the next =. */
+export interface EqualsStep {
+  operation: Operation
+  lastOperation: LastOperation
+}
+
+/**
+ * What = applies: the Pending Operation with the entry as its right Operand (right after an
+ * Operator the entry still shows the left Operand, so `5 + =` is 5 + 5); otherwise the Last
+ * Operation re-applied to the current Result (`2 + 3 = =` → 5 + 3). Null when there is neither.
+ */
+export function equalsOperation(state: ChainState): EqualsStep | null {
+  const pendingWithEntry = pendingOperation(state)
+  if (state.pending !== null && pendingWithEntry !== null) {
+    return {
+      operation: pendingWithEntry,
+      lastOperation: { operator: state.pending.operator, rightOperand: pendingWithEntry.operands[1] },
+    }
+  }
+  if (state.lastOperation !== null) {
+    const { operator, rightOperand } = state.lastOperation
+    return { operation: { operation: operator, operands: [Number(state.entry), rightOperand] }, lastOperation: state.lastOperation }
+  }
+  return null
 }
 
 /** The Pending Operation with the current entry as its right Operand, or null if none is pending. */
