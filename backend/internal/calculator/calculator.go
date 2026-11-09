@@ -3,8 +3,10 @@
 package calculator
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // ErrUnknownOperator is returned when no Operator with the given name exists.
@@ -34,4 +36,22 @@ func Evaluate(name string, operands []float64) (float64, error) {
 		return 0, fmt.Errorf("%w: %q takes %d, got %d", ErrOperandCount, name, op.arity, len(operands))
 	}
 	return op.eval(operands), nil
+}
+
+// OperatorInfo describes a supported Operator as advertised to clients: its name and
+// how many Operands it takes. Name is a plain string because clients may receive
+// Operators they don't know yet (the frontend's drift check relies on that).
+type OperatorInfo struct {
+	Name  string `json:"name"`
+	Arity int    `json:"arity"`
+}
+
+// Operators lists every supported Operator, sorted by name, straight from the registry.
+func Operators() []OperatorInfo {
+	infos := make([]OperatorInfo, 0, len(registry))
+	for name, entry := range registry {
+		infos = append(infos, OperatorInfo{Name: name, Arity: entry.arity})
+	}
+	slices.SortFunc(infos, func(a, b OperatorInfo) int { return cmp.Compare(a.Name, b.Name) })
+	return infos
 }
