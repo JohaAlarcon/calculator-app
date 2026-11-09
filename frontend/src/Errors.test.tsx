@@ -4,13 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { REQUEST_TIMEOUT_MS } from './api/client'
 import type { Operation } from './calculator/operation'
+import { operation } from './test/operations'
 import { installFakeCalculatorService, type FakeFailure } from './test/fakeCalculatorService'
 import { display, pendingOperationLine, press } from './test/keys'
 
-const operation = (operator: Operation['operation'], a: number, b: number): Operation => ({
-  operation: operator,
-  operands: [a, b],
-})
 const divisionByZero: FakeFailure = { status: 422, code: 'DIVISION_BY_ZERO', message: 'Cannot divide by zero' }
 const errorBanner = () => screen.queryByRole('alert')
 

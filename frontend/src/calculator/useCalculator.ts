@@ -2,6 +2,7 @@ import { useReducer } from 'react'
 import { calculate } from '../api/client'
 import {
   chainReducer,
+  entryText,
   equalsOperation,
   initialChain,
   operationToResolveBeforeOperator,
@@ -53,7 +54,7 @@ export function useCalculator() {
   }
 
   return {
-    display: state.error === null ? state.entry : ERROR_DISPLAY,
+    display: state.error === null ? entryText(state) : ERROR_DISPLAY,
     error: state.error,
     awaitingResult: state.awaitingResult,
     pendingOperationText: pendingOperationText(state),
