@@ -15,15 +15,16 @@ test-frontend:
 
 coverage: coverage-backend coverage-frontend ## Generate coverage reports in ./coverage
 
-coverage-backend:
+coverage-backend: ## Whole-module statement coverage (incl. cmd/server) → coverage/backend.html + backend.txt
 	mkdir -p coverage
-	$(GO) test ./... -coverprofile=coverage.out
-	$(GO) tool cover -func=coverage.out
+	$(GO) test ./... -coverpkg=./... -coverprofile=coverage.out
+	$(GO) tool cover -func=coverage.out > coverage/backend.txt
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	mv backend/coverage.html coverage/backend.html
 	rm -f backend/coverage.out
+	tail -1 coverage/backend.txt
 
-coverage-frontend:
+coverage-frontend: ## Vitest V8 coverage → coverage/frontend/index.html + coverage-summary.json
 	cd frontend && npm run test:coverage
 
 up: ## Build and start the stack: UI http://localhost:3000, API http://localhost:8080
