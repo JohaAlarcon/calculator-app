@@ -1,0 +1,16 @@
+# Dependencies & builds
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Local env
+.env
+
+# Generated coverage (committed reports are added deliberately, see #12)
+backend/coverage.out
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
