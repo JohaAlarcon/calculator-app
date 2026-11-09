@@ -38,7 +38,8 @@ describe('Calculator', () => {
       render(<App />)
 
       const add = screen.getByRole('button', { name: 'add' })
-      await waitFor(() => expect(add).toBeDisabled())
+      await waitFor(() => expect(add).toHaveAttribute('aria-disabled', 'true'))
+      expect(add).toHaveAccessibleDescription('Not supported by the calculator service')
       expect(add).toHaveAttribute('title', 'Not supported by the calculator service')
       expect(screen.getByRole('button', { name: '7' })).toBeEnabled()
       expect(service.operatorListRequests).toBe(1)
@@ -53,7 +54,7 @@ describe('Calculator', () => {
 
       await operatorListProcessed(service)
       const add = screen.getByRole('button', { name: 'add' })
-      expect(add).toBeEnabled()
+      expect(add).not.toHaveAttribute('aria-disabled')
       expect(add).not.toHaveAttribute('title')
 
       await user.click(screen.getByRole('button', { name: '2' }))
@@ -71,7 +72,7 @@ describe('Calculator', () => {
       render(<App />)
 
       await operatorListProcessed(service)
-      expect(screen.getByRole('button', { name: 'add' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'add' })).not.toHaveAttribute('aria-disabled')
     })
 
     it('keeps listed Operators enabled', async () => {
@@ -79,7 +80,7 @@ describe('Calculator', () => {
       render(<App />)
 
       await operatorListProcessed(service)
-      expect(screen.getByRole('button', { name: 'add' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'add' })).not.toHaveAttribute('aria-disabled')
     })
   })
 })

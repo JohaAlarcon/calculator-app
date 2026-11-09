@@ -4,8 +4,10 @@
   --text: #1c1c1e;
   --key: #e9e9ee;
   --key-text: #1c1c1e;
-  --accent: #ff9f0a;
+  /* WCAG 2.2: key symbols (24 px, large text) need ≥ 3:1 — these give ≥ 5:1; the focus ring needs ≥ 3:1 vs the card. */
+  --accent: #c2410c;
   --accent-text: #ffffff;
+  --focus: #1d4ed8;
   --muted: #6e6e73;
   --error-bg: #fde8e7;
   --error-text: #a1150b;
@@ -22,6 +24,9 @@
     --text: #f5f5f7;
     --key: #333336;
     --key-text: #f5f5f7;
+    --accent: #ff9f0a;
+    --accent-text: #1c1c1e;
+    --focus: #93c5fd;
     --muted: #a1a1a6;
     --error-bg: #3b1513;
     --error-text: #ffb4ab;
@@ -110,7 +115,11 @@ body {
 }
 
 .key {
+  /* ≥ 44 px touch targets; no double-tap zoom, tap flash or text selection when tapping fast. */
   min-height: 56px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
   border: 0;
   border-radius: var(--radius);
   font-size: 1.5rem;
@@ -124,9 +133,21 @@ body {
   cursor: not-allowed;
 }
 
+/* Dimmed by colour, not opacity, so a focus ring on an unavailable key keeps its contrast. */
+.key[aria-disabled='true'] {
+  background: var(--key);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .key:focus-visible {
-  outline: 3px solid var(--accent);
+  /* Drawn outside the key, on the card, so it contrasts with the card whatever the key colour. */
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+.key:active:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(0.9);
 }
 
 .key--operator,
