@@ -11,6 +11,13 @@ interface FakeServiceOptions {
   operators?: OperatorInfo[] | 'unavailable' | 'unreachable' | 'malformed'
 }
 
+const ALL_BASIC_OPERATORS: OperatorInfo[] = [
+  { name: 'add', arity: 2 },
+  { name: 'divide', arity: 2 },
+  { name: 'multiply', arity: 2 },
+  { name: 'subtract', arity: 2 },
+]
+
 /**
  * A fake of the calculator service at the `fetch` boundary.
  * Results come from a table of known Operations (independent source of truth),
@@ -18,7 +25,7 @@ interface FakeServiceOptions {
  */
 export function installFakeCalculatorService(
   known: Array<[Operation, number]>,
-  { operators = [{ name: 'add', arity: 2 }] }: FakeServiceOptions = {},
+  { operators = ALL_BASIC_OPERATORS }: FakeServiceOptions = {},
 ) {
   const received: Operation[] = []
   let operatorListRequests = 0

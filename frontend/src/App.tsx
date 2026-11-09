@@ -10,10 +10,13 @@ export default function App() {
 
   return (
     <main className="calculator" aria-label="Calculator">
-      <Display value={calculator.display} />
+      <Display pendingOperationText={calculator.pendingOperationText} value={calculator.display} />
       <Keypad
         isAvailable={isAvailable}
         onDigit={calculator.pressDigit}
+        onDecimalPoint={calculator.pressDecimalPoint}
+        onToggleSign={calculator.pressToggleSign}
+        onBackspace={calculator.pressBackspace}
         onOperator={calculator.pressOperator}
         onEquals={calculator.pressEquals}
         onClear={calculator.pressClear}
