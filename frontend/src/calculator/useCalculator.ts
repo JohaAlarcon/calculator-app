@@ -2,9 +2,9 @@ import { useReducer } from 'react'
 import { calculate } from '../api/client'
 import {
   chainReducer,
+  equalsOperation,
   initialChain,
   operationToResolveBeforeOperator,
-  pendingOperation,
   pendingOperationText,
   percentageOperation,
 } from './chain'
@@ -45,9 +45,11 @@ export function useCalculator() {
   }
 
   async function pressEquals() {
-    const operation = pendingOperation(state)
-    if (!operation) return
-    await resolve(operation, (result) => dispatch({ type: 'result', result }))
+    const equals = equalsOperation(state)
+    if (!equals) return
+    await resolve(equals.operation, (result) =>
+      dispatch({ type: 'result', result, lastOperation: equals.lastOperation }),
+    )
   }
 
   return {
