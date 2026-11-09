@@ -37,6 +37,14 @@ func TestCalculateEvaluatesEachOperator(t *testing.T) {
 		{"percentage above 100", "percentage", []float64{150, 40}, 60},
 		{"negative percentage", "percentage", []float64{-10, 50}, -5},
 		{"fractional percentage", "percentage", []float64{12.5, 80}, 10},
+		{"power", "power", []float64{2, 10}, 1024},
+		{"negative exponent", "power", []float64{2, -1}, 0.5},
+		{"fractional exponent", "power", []float64{9, 0.5}, 3},
+		{"negative base, integer exponent", "power", []float64{-8, 3}, -512},
+		{"zero to the zero", "power", []float64{0, 0}, 1},
+		{"square root", "sqrt", []float64{9}, 3},
+		{"square root of zero", "sqrt", []float64{0}, 0},
+		{"irrational square root", "sqrt", []float64{2}, 1.4142135623730951},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

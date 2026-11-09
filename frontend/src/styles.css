@@ -140,6 +140,14 @@ body {
   cursor: not-allowed;
 }
 
+.key--wide {
+  grid-column: span 2;
+}
+
+.key--tall {
+  grid-row: span 2;
+}
+
 .key:focus-visible {
   /* Drawn outside the key, on the card, so it contrasts with the card whatever the key colour. */
   outline: 3px solid var(--focus);

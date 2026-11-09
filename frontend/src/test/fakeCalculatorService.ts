@@ -16,6 +16,8 @@ const ALL_OPERATORS: OperatorInfo[] = [
   { name: 'divide', arity: 2 },
   { name: 'multiply', arity: 2 },
   { name: 'percentage', arity: 2 },
+  { name: 'power', arity: 2 },
+  { name: 'sqrt', arity: 1 },
   { name: 'subtract', arity: 2 },
 ]
 

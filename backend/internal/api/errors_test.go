@@ -79,6 +79,14 @@ func TestMathErrorsAre422WithStableCodes(t *testing.T) {
 			status: 422, code: "OVERFLOW", message: "Result is too large"},
 		{name: "subtract overflows negatively", body: `{"operation":"subtract","operands":[-1e308,1e308]}`,
 			status: 422, code: "OVERFLOW", message: "Result is too large"},
+		{name: "zero to a negative power", body: `{"operation":"power","operands":[0,-1]}`,
+			status: 422, code: "DIVISION_BY_ZERO", message: "Cannot divide by zero"},
+		{name: "square root of a negative", body: `{"operation":"sqrt","operands":[-4]}`,
+			status: 422, code: "INVALID_OPERAND", message: "Result is not a real number"},
+		{name: "negative base, fractional exponent", body: `{"operation":"power","operands":[-8,0.5]}`,
+			status: 422, code: "INVALID_OPERAND", message: "Result is not a real number"},
+		{name: "power overflows", body: `{"operation":"power","operands":[10,400]}`,
+			status: 422, code: "OVERFLOW", message: "Result is too large"},
 	})
 }
 
@@ -99,6 +107,8 @@ func TestInvalidRequestsAre400WithStableCodes(t *testing.T) {
 			message: `Operator "add" takes 2 operands, got 1`},
 		{name: "too many Operands", body: `{"operation":"divide","operands":[1,2,3]}`, status: 400, code: "INVALID_OPERAND_COUNT"},
 		{name: "missing Operands", body: `{"operation":"add"}`, status: 400, code: "INVALID_OPERAND_COUNT"},
+		{name: "two Operands for square root", body: `{"operation":"sqrt","operands":[4,9]}`, status: 400, code: "INVALID_OPERAND_COUNT",
+			message: `Operator "sqrt" takes 1 operands, got 2`},
 	})
 }
 
