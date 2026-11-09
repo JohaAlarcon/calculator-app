@@ -37,3 +37,48 @@ func TestCalculateAddOperation(t *testing.T) {
 		t.Errorf("body = %+v, want {add [2 3] 5}", got)
 	}
 }
+
+func TestListOperationsReturnsEveryOperatorWithArity(t *testing.T) {
+	rec := httptest.NewRecorder()
+	api.NewRouter().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/operations", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var got struct {
+		Operations []struct {
+			Name  string `json:"name"`
+			Arity int    `json:"arity"`
+		} `json:"operations"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON body %q: %v", rec.Body, err)
+	}
+	foundAdd := false
+	for i, operator := range got.Operations {
+		if operator.Name == "add" {
+			foundAdd = operator.Arity == 2
+		}
+		if i > 0 && got.Operations[i-1].Name >= operator.Name {
+			t.Errorf("operations not sorted by name: %+v", got.Operations)
+		}
+	}
+	if !foundAdd {
+		t.Errorf("operations = %+v, want it to include {add 2}", got.Operations)
+	}
+}
+
+func TestHealthzReportsOK(t *testing.T) {
+	rec := httptest.NewRecorder()
+	api.NewRouter().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if body := strings.TrimSpace(rec.Body.String()); body != `{"status":"ok"}` {
+		t.Errorf("body = %s, want {\"status\":\"ok\"}", body)
+	}
+}

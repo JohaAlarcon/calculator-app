@@ -75,6 +75,11 @@ body {
   cursor: pointer;
 }
 
+.key:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .key--wide {
   grid-column: span 2;
 }
