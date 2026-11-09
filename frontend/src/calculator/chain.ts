@@ -15,8 +15,12 @@ export interface ChainState {
   entry: string
   /** The Pending Operation, or null when none is pending. */
   pending: Pending | null
-  /** True after an Operator or a Result: the next digit starts a new entry. */
+  /** True after an Operator, a Result or a failure: the next digit starts a new entry. */
   startNewEntry: boolean
+  /** True while an Operation is with the service; the keypad is locked meanwhile. */
+  awaitingResult: boolean
+  /** Message of the last failed Operation, shown until the next key press. */
+  error: string | null
 }
 
 export type ChainAction =
@@ -28,11 +32,26 @@ export type ChainAction =
   /** The Pending Operation was resolved to `result`, which becomes the left Operand of `operator`. */
   | { type: 'continueChain'; result: number; operator: Operator }
   | { type: 'result'; result: number }
+  | { type: 'requestStarted' }
+  /** The Operation failed; the Chain before it is preserved. */
+  | { type: 'failed'; message: string }
   | { type: 'clear' }
 
-export const initialChain: ChainState = { entry: '0', pending: null, startNewEntry: false }
+export const initialChain: ChainState = {
+  entry: '0',
+  pending: null,
+  startNewEntry: false,
+  awaitingResult: false,
+  error: null,
+}
 
-export function chainReducer(state: ChainState, action: ChainAction): ChainState {
+/** While an error is shown, these keys do nothing (so no input is dropped silently). */
+const IGNORED_WHILE_ERROR: ReadonlySet<ChainAction['type']> = new Set(['operator', 'toggleSign', 'backspace'])
+
+export function chainReducer(current: ChainState, action: ChainAction): ChainState {
+  if (current.error !== null && IGNORED_WHILE_ERROR.has(action.type)) return current
+  // A digit, the decimal point, C or a retried = dismisses the error; the Chain underneath is intact.
+  const state = current.error === null || action.type === 'failed' ? current : { ...current, error: null }
   switch (action.type) {
     case 'digit': {
       if (state.startNewEntry || state.entry === '0') return { ...state, entry: action.digit, startNewEntry: false }
@@ -59,12 +78,18 @@ export function chainReducer(state: ChainState, action: ChainAction): ChainState
       return { ...state, pending: { leftOperand: Number(state.entry), operator: action.operator }, startNewEntry: true }
     case 'continueChain':
       return {
+        ...state,
         entry: String(action.result),
         pending: { leftOperand: action.result, operator: action.operator },
         startNewEntry: true,
+        awaitingResult: false,
       }
     case 'result':
-      return { entry: String(action.result), pending: null, startNewEntry: true }
+      return { ...state, entry: String(action.result), pending: null, startNewEntry: true, awaitingResult: false }
+    case 'requestStarted':
+      return { ...state, awaitingResult: true }
+    case 'failed':
+      return { ...state, error: action.message, startNewEntry: true, awaitingResult: false }
     case 'clear':
       return initialChain
   }

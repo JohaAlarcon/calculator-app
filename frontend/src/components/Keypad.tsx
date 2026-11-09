@@ -1,6 +1,8 @@
 import { OPERATOR_SYMBOLS, type Operator } from '../calculator/operation'
 
 interface KeypadProps {
+  /** Locks every key while an Operation is in flight. */
+  locked: boolean
   isAvailable: (operator: Operator) => boolean
   onDigit: (digit: string) => void
   onDecimalPoint: () => void
@@ -13,16 +15,19 @@ interface KeypadProps {
 
 /** Static keypad (spec #1); rows of four, Operators down the right-hand column. */
 export function Keypad(props: KeypadProps) {
-  const { isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onEquals, onClear } = props
+  const { locked, isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onEquals, onClear } = props
   const digit = (d: string, className = 'key key--digit') => (
     <button type="button" className={className} onClick={() => onDigit(d)}>
       {d}
     </button>
   )
-  const operatorKey = (o: Operator) => <OperatorKey operator={o} isAvailable={isAvailable} onOperator={onOperator} />
+  const operatorKey = (o: Operator) => (
+    <OperatorKey operator={o} isAvailable={isAvailable} onOperator={onOperator} />
+  )
 
   return (
-    <div className="keypad">
+    // A disabled fieldset disables every key inside it.
+    <fieldset className="keypad" disabled={locked}>
       <button type="button" className="key key--function" aria-label="clear" onClick={onClear}>
         C
       </button>
@@ -52,7 +57,7 @@ export function Keypad(props: KeypadProps) {
       <button type="button" className="key key--equals" aria-label="equals" onClick={onEquals}>
         =
       </button>
-    </div>
+    </fieldset>
   )
 }
 

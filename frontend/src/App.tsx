@@ -1,4 +1,5 @@
 import { Display } from './components/Display'
+import { ErrorBanner } from './components/ErrorBanner'
 import { Keypad } from './components/Keypad'
 import { useCalculator } from './calculator/useCalculator'
 import { useOperatorAvailability } from './calculator/useOperatorAvailability'
@@ -11,7 +12,9 @@ export default function App() {
   return (
     <main className="calculator" aria-label="Calculator">
       <Display pendingOperationText={calculator.pendingOperationText} value={calculator.display} />
+      <ErrorBanner message={calculator.error} />
       <Keypad
+        locked={calculator.awaitingResult}
         isAvailable={isAvailable}
         onDigit={calculator.pressDigit}
         onDecimalPoint={calculator.pressDecimalPoint}
