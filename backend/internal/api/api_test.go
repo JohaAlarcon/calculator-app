@@ -11,7 +11,7 @@ import (
 )
 
 func TestCalculateAddOperation(t *testing.T) {
-	router := api.NewRouter()
+	router := api.NewRouter(api.Config{})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/calculate",
 		strings.NewReader(`{"operation":"add","operands":[2,3]}`))
 	req.Header.Set("Content-Type", "application/json")

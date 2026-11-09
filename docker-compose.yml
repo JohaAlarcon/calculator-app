@@ -3,6 +3,7 @@ services:
     build: ./backend
     environment:
       PORT: "8080"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000}"
     ports:
       - "${API_PORT:-8080}:8080"
     restart: unless-stopped
