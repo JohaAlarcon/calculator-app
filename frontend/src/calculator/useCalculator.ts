@@ -1,7 +1,14 @@
 import { useReducer } from 'react'
 import { calculate } from '../api/client'
-import { chainReducer, initialChain, operationToResolveBeforeOperator, pendingOperation, pendingOperationText } from './chain'
-import type { Operation, Operator } from './operation'
+import {
+  chainReducer,
+  initialChain,
+  operationToResolveBeforeOperator,
+  pendingOperation,
+  pendingOperationText,
+  percentageOperation,
+} from './chain'
+import type { BinaryOperator, Operation } from './operation'
 
 export const SERVICE_UNAVAILABLE = 'Calculator service unavailable'
 /** What the display shows while an error is pending; the banner explains it. */
@@ -22,13 +29,19 @@ export function useCalculator() {
     }
   }
 
-  async function pressOperator(operator: Operator) {
+  async function pressOperator(operator: BinaryOperator) {
     const operation = operationToResolveBeforeOperator(state)
     if (!operation) {
       dispatch({ type: 'operator', operator })
       return
     }
     await resolve(operation, (result) => dispatch({ type: 'continueChain', result, operator }))
+  }
+
+  async function pressPercent() {
+    const operation = percentageOperation(state)
+    if (!operation) return
+    await resolve(operation, (result) => dispatch({ type: 'percentApplied', result }))
   }
 
   async function pressEquals() {
@@ -47,6 +60,7 @@ export function useCalculator() {
     pressToggleSign: () => dispatch({ type: 'toggleSign' }),
     pressBackspace: () => dispatch({ type: 'backspace' }),
     pressOperator,
+    pressPercent,
     pressEquals,
     pressClear: () => dispatch({ type: 'clear' }),
   }

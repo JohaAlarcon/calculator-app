@@ -21,6 +21,7 @@ export default function App() {
         onToggleSign={calculator.pressToggleSign}
         onBackspace={calculator.pressBackspace}
         onOperator={calculator.pressOperator}
+        onPercent={calculator.pressPercent}
         onEquals={calculator.pressEquals}
         onClear={calculator.pressClear}
       />

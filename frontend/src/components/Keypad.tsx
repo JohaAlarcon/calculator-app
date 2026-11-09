@@ -1,4 +1,4 @@
-import { OPERATOR_SYMBOLS, type Operator } from '../calculator/operation'
+import { OPERATOR_SYMBOLS, type BinaryOperator, type Operator } from '../calculator/operation'
 
 interface KeypadProps {
   /** Locks every key while an Operation is in flight. */
@@ -8,21 +8,23 @@ interface KeypadProps {
   onDecimalPoint: () => void
   onToggleSign: () => void
   onBackspace: () => void
-  onOperator: (operator: Operator) => void
+  onOperator: (operator: BinaryOperator) => void
+  onPercent: () => void
   onEquals: () => void
   onClear: () => void
 }
 
-/** Static keypad (spec #1); rows of four, Operators down the right-hand column. */
+/** Static keypad (spec #1); rows of four, binary Operators down the right-hand column. */
 export function Keypad(props: KeypadProps) {
-  const { locked, isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onEquals, onClear } = props
-  const digit = (d: string, className = 'key key--digit') => (
-    <button type="button" className={className} onClick={() => onDigit(d)}>
+  const { locked, isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onPercent, onEquals, onClear } =
+    props
+  const digit = (d: string) => (
+    <button type="button" className="key key--digit" onClick={() => onDigit(d)}>
       {d}
     </button>
   )
-  const operatorKey = (o: Operator) => (
-    <OperatorKey operator={o} isAvailable={isAvailable} onOperator={onOperator} />
+  const operatorKey = (o: BinaryOperator) => (
+    <OperatorKey operator={o} className="key key--operator" isAvailable={isAvailable} onPress={() => onOperator(o)} />
   )
 
   return (
@@ -31,12 +33,16 @@ export function Keypad(props: KeypadProps) {
       <button type="button" className="key key--function" aria-label="clear" onClick={onClear}>
         C
       </button>
-      <button type="button" className="key key--function" aria-label="toggle sign" onClick={onToggleSign}>
-        ±
-      </button>
       <button type="button" className="key key--function" aria-label="backspace" onClick={onBackspace}>
         ⌫
       </button>
+      <OperatorKey
+        operator="percentage"
+        label="percent"
+        className="key key--function"
+        isAvailable={isAvailable}
+        onPress={onPercent}
+      />
       {operatorKey('divide')}
       {digit('7')}
       {digit('8')}
@@ -50,7 +56,10 @@ export function Keypad(props: KeypadProps) {
       {digit('2')}
       {digit('3')}
       {operatorKey('add')}
-      {digit('0', 'key key--digit key--wide')}
+      <button type="button" className="key key--function" aria-label="toggle sign" onClick={onToggleSign}>
+        ±
+      </button>
+      {digit('0')}
       <button type="button" className="key key--digit" aria-label="decimal point" onClick={onDecimalPoint}>
         .
       </button>
@@ -62,21 +71,25 @@ export function Keypad(props: KeypadProps) {
 }
 
 interface OperatorKeyProps {
+  /** The service Operator this key needs; the key is disabled if the service doesn't list it. */
   operator: Operator
+  /** Accessible name; defaults to the Operator's name. */
+  label?: string
+  className: string
   isAvailable: (operator: Operator) => boolean
-  onOperator: (operator: Operator) => void
+  onPress: () => void
 }
 
-function OperatorKey({ operator, isAvailable, onOperator }: OperatorKeyProps) {
+function OperatorKey({ operator, label = operator, className, isAvailable, onPress }: OperatorKeyProps) {
   const available = isAvailable(operator)
   return (
     <button
       type="button"
-      className="key key--operator"
-      aria-label={operator}
+      className={className}
+      aria-label={label}
       disabled={!available}
       title={available ? undefined : 'Not supported by the calculator service'}
-      onClick={() => onOperator(operator)}
+      onClick={onPress}
     >
       {OPERATOR_SYMBOLS[operator]}
     </button>

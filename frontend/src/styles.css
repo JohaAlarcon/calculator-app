@@ -108,10 +108,6 @@ body {
   cursor: not-allowed;
 }
 
-.key--wide {
-  grid-column: span 2;
-}
-
 .key:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;

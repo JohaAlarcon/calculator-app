@@ -16,7 +16,7 @@ import (
 	"github.com/JohaAlarcon/calculator-app/backend/internal/calculator"
 )
 
-func TestCalculateEvaluatesEachBasicOperator(t *testing.T) {
+func TestCalculateEvaluatesEachOperator(t *testing.T) {
 	tests := []struct {
 		name      string
 		operation string
@@ -32,6 +32,11 @@ func TestCalculateEvaluatesEachBasicOperator(t *testing.T) {
 		{"divide", "divide", []float64{12, 4}, 3},
 		{"divide to a fraction", "divide", []float64{1, 4}, 0.25},
 		{"divide by a negative", "divide", []float64{7, -2}, -3.5},
+		{"percentage of a base", "percentage", []float64{10, 50}, 5},
+		{"percentage of 1 (plain ÷100)", "percentage", []float64{10, 1}, 0.1},
+		{"percentage above 100", "percentage", []float64{150, 40}, 60},
+		{"negative percentage", "percentage", []float64{-10, 50}, -5},
+		{"fractional percentage", "percentage", []float64{12.5, 80}, 10},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,4 +113,26 @@ func TestHealthzReportsOK(t *testing.T) {
 // newTestRouter builds the full router, middleware included, with request logs discarded.
 func newTestRouter() http.Handler {
 	return api.NewRouter(api.Config{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+}
+
+func TestPercentageOfAHugeNumberDoesNotOverflowOnTheWay(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/calculate",
+		strings.NewReader(`{"operation":"percentage","operands":[1e308,50]}`))
+	rec := httptest.NewRecorder()
+
+	newTestRouter().ServeHTTP(rec, req)
+
+	// 1e308 × 50 alone exceeds float64, but 50% of 1e308 (5e307) fits.
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body)
+	}
+	var got struct {
+		Result float64 `json:"result"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON body %q: %v", rec.Body, err)
+	}
+	if got.Result < 4.99e307 || got.Result > 5.01e307 {
+		t.Errorf("result = %g, want ≈ 5e307", got.Result)
+	}
 }

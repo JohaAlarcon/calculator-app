@@ -52,6 +52,10 @@ var registry = map[string]operator{
 	"subtract": {arity: 2, eval: func(o []float64) float64 { return o[0] - o[1] }},
 	"multiply": {arity: 2, eval: func(o []float64) float64 { return o[0] * o[1] }},
 	"divide":   {arity: 2, check: nonZeroDivisor, eval: func(o []float64) float64 { return o[0] / o[1] }},
+	// percentage(a, b) is "a percent of b". It is context-free: the app picks b
+	// from the Chain (ADR-0002), e.g. percentage(10, 1) for a plain ÷100.
+	// Dividing first avoids a spurious overflow in the a×b product.
+	"percentage": {arity: 2, eval: func(o []float64) float64 { return o[0] / 100 * o[1] }},
 }
 
 func nonZeroDivisor(o []float64) error {
