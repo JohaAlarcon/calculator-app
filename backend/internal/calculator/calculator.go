@@ -6,18 +6,43 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 )
 
-// ErrUnknownOperator is returned when no Operator with the given name exists.
-var ErrUnknownOperator = errors.New("unknown operator")
+// UnknownOperatorError is returned when no Operator with the given name exists.
+type UnknownOperatorError struct {
+	Operator string
+}
 
-// ErrOperandCount is returned when the number of Operands does not match the Operator's arity.
-var ErrOperandCount = errors.New("wrong number of operands")
+func (e *UnknownOperatorError) Error() string { return fmt.Sprintf("unknown operator %q", e.Operator) }
 
-// operator is a registry entry: how many Operands it takes and how to evaluate them.
+// OperandCountError is returned when the number of Operands does not match the Operator's arity.
+type OperandCountError struct {
+	Operator  string
+	Want, Got int
+}
+
+func (e *OperandCountError) Error() string {
+	return fmt.Sprintf("operator %q takes %d operands, got %d", e.Operator, e.Want, e.Got)
+}
+
+// Math Errors: a well-formed Operation with no finite real Result (ADR-0004).
+var (
+	// ErrDivisionByZero is returned when an Operation would divide by zero.
+	ErrDivisionByZero = errors.New("division by zero")
+	// ErrInvalidOperand is returned when an Operand is outside the Operator's domain
+	// (the Result would not be a real number).
+	ErrInvalidOperand = errors.New("operand outside the operator's domain")
+	// ErrOverflow is returned when the Result is too large to represent.
+	ErrOverflow = errors.New("result too large")
+)
+
+// operator is a registry entry: how many Operands it takes, an optional domain
+// check that reports a Math Error before evaluating, and how to evaluate them.
 type operator struct {
 	arity int
+	check func(operands []float64) error
 	eval  func(operands []float64) float64
 }
 
@@ -26,21 +51,41 @@ var registry = map[string]operator{
 	"add":      {arity: 2, eval: func(o []float64) float64 { return o[0] + o[1] }},
 	"subtract": {arity: 2, eval: func(o []float64) float64 { return o[0] - o[1] }},
 	"multiply": {arity: 2, eval: func(o []float64) float64 { return o[0] * o[1] }},
-	// Division by zero becomes a Math Error in #6; until then the non-finite
-	// Result is caught by the API layer and answered with a 500.
-	"divide": {arity: 2, eval: func(o []float64) float64 { return o[0] / o[1] }},
+	"divide":   {arity: 2, check: nonZeroDivisor, eval: func(o []float64) float64 { return o[0] / o[1] }},
+}
+
+func nonZeroDivisor(o []float64) error {
+	if o[1] == 0 {
+		return ErrDivisionByZero
+	}
+	return nil
 }
 
 // Evaluate applies the named Operator to the Operands and returns the Result.
+// It never returns a non-finite Result: NaN becomes ErrInvalidOperand and
+// ±Inf becomes ErrOverflow, unless the Operator's own check reported a more
+// specific Math Error first.
 func Evaluate(name string, operands []float64) (float64, error) {
 	op, ok := registry[name]
 	if !ok {
-		return 0, fmt.Errorf("%w: %q", ErrUnknownOperator, name)
+		return 0, &UnknownOperatorError{Operator: name}
 	}
 	if len(operands) != op.arity {
-		return 0, fmt.Errorf("%w: %q takes %d, got %d", ErrOperandCount, name, op.arity, len(operands))
+		return 0, &OperandCountError{Operator: name, Want: op.arity, Got: len(operands)}
 	}
-	return op.eval(operands), nil
+	if op.check != nil {
+		if err := op.check(operands); err != nil {
+			return 0, err
+		}
+	}
+	result := op.eval(operands)
+	switch {
+	case math.IsNaN(result):
+		return 0, ErrInvalidOperand
+	case math.IsInf(result, 0):
+		return 0, ErrOverflow
+	}
+	return result, nil
 }
 
 // OperatorInfo describes a supported Operator as advertised to clients: its name and

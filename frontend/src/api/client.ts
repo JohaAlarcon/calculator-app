@@ -9,14 +9,61 @@ export const CALCULATE_URL = '/api/v1/calculate'
 /** Lists the supported Operators (the path name is fixed by the API contract). */
 export const OPERATORS_URL = '/api/v1/operations'
 
-/** Evaluates one Operation on the service and returns its Result. */
-export async function calculate(operation: Operation): Promise<number> {
-  const body = await fetchJSON<OperationResponse>(CALCULATE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(operation),
-  })
-  return body.result
+/**
+ * What happened to an Operation sent to the service:
+ * - `result`: it was evaluated;
+ * - `rejected`: the service refused it (a Math Error or an Invalid Request), with its code and message;
+ * - `unavailable`: no usable answer (network failure, 5xx, or an unreadable response).
+ */
+export type OperationOutcome =
+  | { kind: 'result'; result: number }
+  | { kind: 'rejected'; code: string; message: string }
+  | { kind: 'unavailable' }
+
+const UNAVAILABLE: OperationOutcome = { kind: 'unavailable' }
+
+/** How long an Operation may take before the service counts as unavailable (the keypad is locked meanwhile). */
+export const REQUEST_TIMEOUT_MS = 10_000
+
+/** Evaluates one Operation on the service. Never throws: failures come back as an outcome. */
+export async function calculate(operation: Operation): Promise<OperationOutcome> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetch(CALCULATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(operation),
+      signal: controller.signal,
+    })
+  } catch {
+    return UNAVAILABLE // network failure or timeout
+  } finally {
+    clearTimeout(timer)
+  }
+  const body: unknown = await response.json().catch(() => null)
+  if (response.ok && isOperationResponse(body)) {
+    return { kind: 'result', result: body.result }
+  }
+  // A 4xx with the service's JSON error is a refusal; anything else (e.g. a proxy's HTML page) is unavailability.
+  if (response.status >= 400 && response.status < 500 && isErrorResponse(body)) {
+    return { kind: 'rejected', code: body.error.code, message: body.error.message }
+  }
+  return UNAVAILABLE
+}
+
+function isOperationResponse(body: unknown): body is OperationResponse {
+  return typeof (body as OperationResponse | null)?.result === 'number'
+}
+
+interface ErrorResponse {
+  error: { code: string; message: string }
+}
+
+function isErrorResponse(body: unknown): body is ErrorResponse {
+  const error = (body as ErrorResponse | null)?.error
+  return typeof error?.code === 'string' && typeof error.message === 'string'
 }
 
 /** Lists the Operators the service supports. */
