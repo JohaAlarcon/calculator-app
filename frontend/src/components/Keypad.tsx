@@ -1,32 +1,54 @@
-import type { Operator } from '../calculator/operation'
+import { OPERATOR_SYMBOLS, type Operator } from '../calculator/operation'
 
 interface KeypadProps {
   isAvailable: (operator: Operator) => boolean
   onDigit: (digit: string) => void
+  onDecimalPoint: () => void
+  onToggleSign: () => void
+  onBackspace: () => void
   onOperator: (operator: Operator) => void
   onEquals: () => void
   onClear: () => void
 }
 
-const DIGITS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '0']
+/** Static keypad (spec #1); rows of four, Operators down the right-hand column. */
+export function Keypad(props: KeypadProps) {
+  const { isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onEquals, onClear } = props
+  const digit = (d: string, className = 'key key--digit') => (
+    <button type="button" className={className} onClick={() => onDigit(d)}>
+      {d}
+    </button>
+  )
+  const operatorKey = (o: Operator) => <OperatorKey operator={o} isAvailable={isAvailable} onOperator={onOperator} />
 
-export function Keypad({ isAvailable, onDigit, onOperator, onEquals, onClear }: KeypadProps) {
   return (
     <div className="keypad">
-      <button type="button" className="key key--function key--wide" aria-label="clear" onClick={onClear}>
+      <button type="button" className="key key--function" aria-label="clear" onClick={onClear}>
         C
       </button>
-      <OperatorKey operator="add" label="+" isAvailable={isAvailable} onOperator={onOperator} />
-      {DIGITS.map((digit) => (
-        <button
-          key={digit}
-          type="button"
-          className={digit === '0' ? 'key key--digit key--wide' : 'key key--digit'}
-          onClick={() => onDigit(digit)}
-        >
-          {digit}
-        </button>
-      ))}
+      <button type="button" className="key key--function" aria-label="toggle sign" onClick={onToggleSign}>
+        ±
+      </button>
+      <button type="button" className="key key--function" aria-label="backspace" onClick={onBackspace}>
+        ⌫
+      </button>
+      {operatorKey('divide')}
+      {digit('7')}
+      {digit('8')}
+      {digit('9')}
+      {operatorKey('multiply')}
+      {digit('4')}
+      {digit('5')}
+      {digit('6')}
+      {operatorKey('subtract')}
+      {digit('1')}
+      {digit('2')}
+      {digit('3')}
+      {operatorKey('add')}
+      {digit('0', 'key key--digit key--wide')}
+      <button type="button" className="key key--digit" aria-label="decimal point" onClick={onDecimalPoint}>
+        .
+      </button>
       <button type="button" className="key key--equals" aria-label="equals" onClick={onEquals}>
         =
       </button>
@@ -36,12 +58,11 @@ export function Keypad({ isAvailable, onDigit, onOperator, onEquals, onClear }: 
 
 interface OperatorKeyProps {
   operator: Operator
-  label: string
   isAvailable: (operator: Operator) => boolean
   onOperator: (operator: Operator) => void
 }
 
-function OperatorKey({ operator, label, isAvailable, onOperator }: OperatorKeyProps) {
+function OperatorKey({ operator, isAvailable, onOperator }: OperatorKeyProps) {
   const available = isAvailable(operator)
   return (
     <button
@@ -52,7 +73,7 @@ function OperatorKey({ operator, label, isAvailable, onOperator }: OperatorKeyPr
       title={available ? undefined : 'Not supported by the calculator service'}
       onClick={() => onOperator(operator)}
     >
-      {label}
+      {OPERATOR_SYMBOLS[operator]}
     </button>
   )
 }
