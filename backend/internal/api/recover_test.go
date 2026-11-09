@@ -73,3 +73,21 @@ func TestPanicAfterResponseStartedAbortsInsteadOfAppendingJSON(t *testing.T) {
 	}()
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 }
+
+func TestHandlersBehindTheMiddlewareCanFlush(t *testing.T) {
+	// http.ResponseController reaches the real writer through the middleware's recorder (Unwrap).
+	handler := api.ServiceMiddleware(api.Config{Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))})(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("partial"))
+			if err := http.NewResponseController(w).Flush(); err != nil {
+				t.Errorf("Flush through the middleware: %v", err)
+			}
+		}))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if !rec.Flushed {
+		t.Error("response was not flushed")
+	}
+}

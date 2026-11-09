@@ -1,0 +1,672 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/JohaAlarcon/calculator-app/backend/cmd/server/main.go (75.8%)</option>
+				
+				<option value="file1">github.com/JohaAlarcon/calculator-app/backend/internal/api/api.go (91.7%)</option>
+				
+				<option value="file2">github.com/JohaAlarcon/calculator-app/backend/internal/api/middleware.go (98.2%)</option>
+				
+				<option value="file3">github.com/JohaAlarcon/calculator-app/backend/internal/calculator/calculator.go (94.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Command server runs the calculator HTTP service.
+//
+// Configuration (environment):
+//
+//        PORT             listen port (default 8080)
+//        ALLOWED_ORIGINS  comma-separated browser origins allowed via CORS (default http://localhost:3000)
+package main
+
+import (
+        "context"
+        "errors"
+        "fmt"
+        "log/slog"
+        "net"
+        "net/http"
+        "os"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/JohaAlarcon/calculator-app/backend/internal/api"
+)
+
+// shutdownTimeout bounds how long in-flight requests may take to finish on SIGINT/SIGTERM.
+const shutdownTimeout = 10 * time.Second
+
+func main() <span class="cov0" title="0">{
+        logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+        slog.SetDefault(logger)
+
+        if err := runUntilSignalled(configFromEnv(os.Getenv), logger, nil); err != nil </span><span class="cov0" title="0">{
+                logger.Error("server stopped with error", "error", err)
+                os.Exit(1)
+        }</span>
+}
+
+// runUntilSignalled runs the service until the process receives SIGINT or SIGTERM, then
+// shuts down gracefully (see run).
+func runUntilSignalled(cfg serverConfig, logger *slog.Logger, onListening func(net.Addr)) error <span class="cov8" title="1">{
+        ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+        defer stop()
+        return run(ctx, cfg, logger, onListening)
+}</span>
+
+// serverConfig is everything the service reads from its environment.
+type serverConfig struct {
+        Addr           string
+        AllowedOrigins []string
+}
+
+// configFromEnv reads PORT and ALLOWED_ORIGINS, applying their defaults.
+func configFromEnv(getenv func(string) string) serverConfig <span class="cov8" title="1">{
+        port := getenv("PORT")
+        if port == "" </span><span class="cov8" title="1">{
+                port = "8080"
+        }</span>
+        <span class="cov8" title="1">return serverConfig{Addr: ":" + port, AllowedOrigins: api.ParseAllowedOrigins(getenv("ALLOWED_ORIGINS"))}</span>
+}
+
+// run serves the API on cfg.Addr until ctx is done, then shuts down gracefully, letting
+// in-flight requests finish (up to shutdownTimeout). onListening, if set, receives the
+// address actually listened on (useful with port 0).
+func run(ctx context.Context, cfg serverConfig, logger *slog.Logger, onListening func(net.Addr)) error <span class="cov8" title="1">{
+        listener, err := net.Listen("tcp", cfg.Addr)
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("listen on %q: %w", cfg.Addr, err)
+        }</span>
+        <span class="cov8" title="1">srv := &amp;http.Server{
+                Handler:           api.NewRouter(api.Config{AllowedOrigins: cfg.AllowedOrigins, Logger: logger}),
+                ReadHeaderTimeout: 5 * time.Second,
+                ReadTimeout:       10 * time.Second,
+                WriteTimeout:      10 * time.Second,
+                IdleTimeout:       60 * time.Second,
+                ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
+        }
+
+        serveErr := make(chan error, 1)
+        go func() </span><span class="cov8" title="1">{ serveErr &lt;- srv.Serve(listener) }</span>()
+        <span class="cov8" title="1">logger.Info("calculator service listening", "addr", listener.Addr().String(), "allowed_origins", cfg.AllowedOrigins)
+        if onListening != nil </span><span class="cov8" title="1">{
+                onListening(listener.Addr())
+        }</span>
+
+        <span class="cov8" title="1">select </span>{
+        case err := &lt;-serveErr:<span class="cov0" title="0">
+                return err</span>
+        case &lt;-ctx.Done():<span class="cov8" title="1"></span>
+        }
+
+        <span class="cov8" title="1">logger.Info("shutting down: draining in-flight requests", "timeout", shutdownTimeout.String())
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+        defer cancel()
+        if err := srv.Shutdown(shutdownCtx); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := &lt;-serveErr; !errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">logger.Info("shutdown complete")
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package api is the HTTP adapter over the calculator domain.
+package api
+
+import (
+        "bytes"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "log/slog"
+        "net/http"
+
+        "github.com/JohaAlarcon/calculator-app/backend/internal/calculator"
+)
+
+type calculateRequest struct {
+        Operation string    `json:"operation"`
+        Operands  []float64 `json:"operands"`
+}
+
+type calculateResponse struct {
+        calculateRequest
+        Result float64 `json:"result"`
+}
+
+// NewRouter returns the service's HTTP handler: all routes, wrapped in ServiceMiddleware.
+func NewRouter(cfg Config) http.Handler <span class="cov8" title="1">{
+        mux := http.NewServeMux()
+        route(mux, http.MethodPost, "/api/v1/calculate", handleCalculate)
+        route(mux, http.MethodGet, "/api/v1/operations", handleListOperators)
+        route(mux, http.MethodGet, "/healthz", handleHealthz)
+        mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) </span><span class="cov8" title="1">{
+                writeError(w, http.StatusNotFound, codeNotFound, "No such endpoint")
+        }</span>)
+        <span class="cov8" title="1">return ServiceMiddleware(cfg)(mux)</span>
+}
+
+// route registers a handler for one method on a path, and a JSON 405 (with an
+// Allow header) for every other method on that path — the standard library's
+// own 405 and 404 replies are plain text, but every error body must be JSON.
+func route(mux *http.ServeMux, method, path string, handler http.HandlerFunc) <span class="cov8" title="1">{
+        mux.HandleFunc(method+" "+path, handler)
+        mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                w.Header().Set("Allow", method)
+                writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed,
+                        fmt.Sprintf("Method %s is not allowed on %s; use %s", r.Method, path, method))
+        }</span>)
+}
+
+// maxRequestBodyBytes bounds the calculate request body (1 KB).
+const maxRequestBodyBytes = 1024
+
+func handleCalculate(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        req, err := decodeCalculateRequest(w, r)
+        if err != nil </span><span class="cov8" title="1">{
+                writeError(w, http.StatusBadRequest, codeInvalidJSON, err.Error())
+                return
+        }</span>
+        <span class="cov8" title="1">result, err := calculator.Evaluate(req.Operation, req.Operands)
+        if err != nil </span><span class="cov8" title="1">{
+                writeOperationError(w, err)
+                return
+        }</span>
+        <span class="cov8" title="1">writeJSON(w, http.StatusOK, calculateResponse{calculateRequest: req, Result: result})</span>
+}
+
+// decodeCalculateRequest reads exactly one JSON object with only the known fields,
+// within the body-size limit. Its errors are user-facing messages.
+func decodeCalculateRequest(w http.ResponseWriter, r *http.Request) (calculateRequest, error) <span class="cov8" title="1">{
+        var req calculateRequest
+        dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBodyBytes))
+        dec.DisallowUnknownFields()
+        err := dec.Decode(&amp;req)
+        if err == nil </span><span class="cov8" title="1">{
+                // Exactly one object: the next read must hit the end of the body.
+                switch next := dec.Decode(&amp;struct{}{}); </span>{
+                case next == nil:<span class="cov8" title="1">
+                        err = errors.New("trailing data after the JSON object")</span>
+                case next != io.EOF:<span class="cov8" title="1">
+                        err = next</span> // malformed trailing data, or the body-size limit
+                }
+        }
+        <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                return req, nil
+        }</span>
+        <span class="cov8" title="1">var tooLarge *http.MaxBytesError
+        if errors.As(err, &amp;tooLarge) </span><span class="cov8" title="1">{
+                return req, fmt.Errorf("Request body must not exceed %d KB", maxRequestBodyBytes/1024)
+        }</span>
+        <span class="cov8" title="1">return req, errors.New(`Request body must be one JSON object like {"operation":"add","operands":[2,3]}`)</span>
+}
+
+// operatorsResponse is the body of GET /api/v1/operations; the path and the
+// "operations" key are fixed by the API contract (spec #1).
+type operatorsResponse struct {
+        Operators []calculator.OperatorInfo `json:"operations"`
+}
+
+func handleListOperators(w http.ResponseWriter, _ *http.Request) <span class="cov8" title="1">{
+        writeJSON(w, http.StatusOK, operatorsResponse{Operators: calculator.Operators()})
+}</span>
+
+func handleHealthz(w http.ResponseWriter, _ *http.Request) <span class="cov8" title="1">{
+        writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}</span>
+
+// writeJSON encodes before writing the status, so an unencodable body
+// (e.g. a non-finite float) becomes a 500 instead of a 200 with an empty body.
+func writeJSON(w http.ResponseWriter, status int, body any) <span class="cov8" title="1">{
+        var buf bytes.Buffer
+        if err := json.NewEncoder(&amp;buf).Encode(body); err != nil </span><span class="cov0" title="0">{
+                slog.Error("encode response", "error", err)
+                writeInternalError(w) // re-enters writeJSON with a body that always encodes
+                return
+        }</span>
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(status)
+        _, _ = w.Write(buf.Bytes())</span>
+}
+
+// errorCode is a stable, machine-readable error identifier; part of the public API contract (ADR-0004).
+type errorCode string
+
+const (
+        codeInternalError    errorCode = "INTERNAL_ERROR"
+        codeNotFound         errorCode = "NOT_FOUND"
+        codeMethodNotAllowed errorCode = "METHOD_NOT_ALLOWED"
+
+        // Invalid Requests (HTTP 400).
+        codeInvalidJSON         errorCode = "INVALID_JSON"
+        codeUnknownOperation    errorCode = "UNKNOWN_OPERATION"
+        codeInvalidOperandCount errorCode = "INVALID_OPERAND_COUNT"
+
+        // Math Errors (HTTP 422).
+        codeDivisionByZero errorCode = "DIVISION_BY_ZERO"
+        codeInvalidOperand errorCode = "INVALID_OPERAND"
+        codeOverflow       errorCode = "OVERFLOW"
+)
+
+// errorResponse is the JSON shape of every error (spec #1): {"error":{"code","message"}}.
+type errorResponse struct {
+        Error errorBody `json:"error"`
+}
+
+type errorBody struct {
+        Code    errorCode `json:"code"`
+        Message string    `json:"message"`
+}
+
+func writeError(w http.ResponseWriter, status int, code errorCode, message string) <span class="cov8" title="1">{
+        writeJSON(w, status, errorResponse{Error: errorBody{Code: code, Message: message}})
+}</span>
+
+func writeInternalError(w http.ResponseWriter) <span class="cov8" title="1">{
+        writeError(w, http.StatusInternalServerError, codeInternalError, "Internal server error")
+}</span>
+
+// mathErrors maps each domain Math Error to its public code and message (ADR-0004).
+var mathErrors = []struct {
+        err     error
+        code    errorCode
+        message string
+}{
+        {calculator.ErrDivisionByZero, codeDivisionByZero, "Cannot divide by zero"},
+        {calculator.ErrInvalidOperand, codeInvalidOperand, "Result is not a real number"},
+        {calculator.ErrOverflow, codeOverflow, "Result is too large"},
+}
+
+// writeOperationError answers a failed Evaluate: an Invalid Request is 400,
+// a Math Error is 422 (ADR-0004).
+func writeOperationError(w http.ResponseWriter, err error) <span class="cov8" title="1">{
+        var unknown *calculator.UnknownOperatorError
+        if errors.As(err, &amp;unknown) </span><span class="cov8" title="1">{
+                writeError(w, http.StatusBadRequest, codeUnknownOperation, fmt.Sprintf("Unknown operator %q", unknown.Operator))
+                return
+        }</span>
+        <span class="cov8" title="1">var count *calculator.OperandCountError
+        if errors.As(err, &amp;count) </span><span class="cov8" title="1">{
+                writeError(w, http.StatusBadRequest, codeInvalidOperandCount,
+                        fmt.Sprintf("Operator %q takes %d operands, got %d", count.Operator, count.Want, count.Got))
+                return
+        }</span>
+        <span class="cov8" title="1">for _, m := range mathErrors </span><span class="cov8" title="1">{
+                if errors.Is(err, m.err) </span><span class="cov8" title="1">{
+                        writeError(w, http.StatusUnprocessableEntity, m.code, m.message)
+                        return
+                }</span>
+        }
+        <span class="cov0" title="0">slog.Error("unclassified Operation error", "error", err)
+        writeInternalError(w)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package api
+
+import (
+        "log/slog"
+        "net/http"
+        "slices"
+        "strings"
+        "time"
+)
+
+// DefaultAllowedOrigin is the UI's origin when ALLOWED_ORIGINS is not set.
+const DefaultAllowedOrigin = "http://localhost:3000"
+
+// Config holds the HTTP layer's settings.
+type Config struct {
+        // AllowedOrigins are the exact browser origins allowed to call the service
+        // directly (ADR-0005). "*" is never treated as a wildcard.
+        AllowedOrigins []string
+        // Logger receives one structured entry per request; nil means slog.Default().
+        Logger *slog.Logger
+}
+
+// ParseAllowedOrigins turns a comma-separated ALLOWED_ORIGINS value into a list,
+// trimming blanks; an empty value yields DefaultAllowedOrigin.
+func ParseAllowedOrigins(raw string) []string <span class="cov8" title="1">{
+        var origins []string
+        for _, origin := range strings.Split(raw, ",") </span><span class="cov8" title="1">{
+                if origin = strings.TrimSpace(origin); origin != "" </span><span class="cov8" title="1">{
+                        origins = append(origins, origin)
+                }</span>
+        }
+        <span class="cov8" title="1">if len(origins) == 0 </span><span class="cov8" title="1">{
+                return []string{DefaultAllowedOrigin}
+        }</span>
+        <span class="cov8" title="1">return origins</span>
+}
+
+// ServiceMiddleware wraps a handler with the service's cross-cutting behaviour:
+// request logging, panic recovery and CORS (outermost first).
+func ServiceMiddleware(cfg Config) func(http.Handler) http.Handler <span class="cov8" title="1">{
+        logger := cfg.Logger
+        if logger == nil </span><span class="cov8" title="1">{
+                logger = slog.Default()
+        }</span>
+        <span class="cov8" title="1">return func(next http.Handler) http.Handler </span><span class="cov8" title="1">{
+                return logRequests(logger, recoverPanics(logger, cors(cfg.AllowedOrigins, next)))
+        }</span>
+}
+
+// cors answers preflight requests and adds CORS headers for allowed origins only.
+func cors(allowedOrigins []string, next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                origin := r.Header.Get("Origin")
+                allowed := origin != "" &amp;&amp; slices.Contains(allowedOrigins, origin)
+                if origin != "" </span><span class="cov8" title="1">{
+                        w.Header().Add("Vary", "Origin")
+                }</span>
+                <span class="cov8" title="1">if allowed </span><span class="cov8" title="1">{
+                        w.Header().Set("Access-Control-Allow-Origin", origin)
+                }</span>
+
+                <span class="cov8" title="1">isPreflight := r.Method == http.MethodOptions &amp;&amp; r.Header.Get("Access-Control-Request-Method") != ""
+                if isPreflight </span><span class="cov8" title="1">{
+                        if !allowed </span><span class="cov8" title="1">{
+                                w.WriteHeader(http.StatusForbidden)
+                                return
+                        }</span>
+                        // GET is a CORS-safelisted method and never needs a preflight, so only POST is listed.
+                        <span class="cov8" title="1">w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+                        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+                        w.Header().Set("Access-Control-Max-Age", "600")
+                        w.WriteHeader(http.StatusNoContent)
+                        return</span>
+                }
+                <span class="cov8" title="1">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// recoverPanics turns a panicking handler into a 500 JSON error and keeps the service up.
+// The panic value is logged, never sent to the client. If the handler had already started
+// the response, it is too late for a clean error, so the connection is aborted instead.
+func recoverPanics(logger *slog.Logger, next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                rec := &amp;statusRecorder{ResponseWriter: w, status: http.StatusOK}
+                defer func() </span><span class="cov8" title="1">{
+                        v := recover()
+                        if v == nil </span><span class="cov8" title="1">{
+                                return
+                        }</span>
+                        <span class="cov8" title="1">if v == http.ErrAbortHandler </span><span class="cov0" title="0">{
+                                panic(v)</span>
+                        }
+                        <span class="cov8" title="1">logger.Error("panic serving request", "method", r.Method, "path", r.URL.Path, "panic", v)
+                        if rec.wroteHeader </span><span class="cov8" title="1">{
+                                panic(http.ErrAbortHandler)</span>
+                        }
+                        <span class="cov8" title="1">writeInternalError(w)</span>
+                }()
+                <span class="cov8" title="1">next.ServeHTTP(rec, r)</span>
+        })
+}
+
+// logRequests writes one structured log entry per request once it completes.
+func logRequests(logger *slog.Logger, next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                start := time.Now()
+                rec := &amp;statusRecorder{ResponseWriter: w, status: http.StatusOK}
+                next.ServeHTTP(rec, r)
+                logger.Info("request",
+                        "method", r.Method,
+                        "path", r.URL.Path,
+                        "status", rec.status,
+                        "duration_ms", float64(time.Since(start).Microseconds())/1000,
+                )
+        }</span>)
+}
+
+// statusRecorder remembers the status code a handler wrote and whether it started the response.
+type statusRecorder struct {
+        http.ResponseWriter
+        status      int
+        wroteHeader bool
+}
+
+func (r *statusRecorder) WriteHeader(status int) <span class="cov8" title="1">{
+        if !r.wroteHeader </span><span class="cov8" title="1">{
+                r.status = status
+                r.wroteHeader = true
+        }</span>
+        <span class="cov8" title="1">r.ResponseWriter.WriteHeader(status)</span>
+}
+
+func (r *statusRecorder) Write(b []byte) (int, error) <span class="cov8" title="1">{
+        r.wroteHeader = true
+        return r.ResponseWriter.Write(b)
+}</span>
+
+// Unwrap lets http.ResponseController reach the underlying writer.
+func (r *statusRecorder) Unwrap() http.ResponseWriter <span class="cov8" title="1">{
+        return r.ResponseWriter
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Package calculator is the arithmetic domain: it evaluates a single Operation
+// (an Operator applied to its Operands) and knows nothing about HTTP.
+package calculator
+
+import (
+        "cmp"
+        "errors"
+        "fmt"
+        "math"
+        "slices"
+)
+
+// UnknownOperatorError is returned when no Operator with the given name exists.
+type UnknownOperatorError struct {
+        Operator string
+}
+
+func (e *UnknownOperatorError) Error() string <span class="cov0" title="0">{ return fmt.Sprintf("unknown operator %q", e.Operator) }</span>
+
+// OperandCountError is returned when the number of Operands does not match the Operator's arity.
+type OperandCountError struct {
+        Operator  string
+        Want, Got int
+}
+
+func (e *OperandCountError) Error() string <span class="cov0" title="0">{
+        return fmt.Sprintf("operator %q takes %d operands, got %d", e.Operator, e.Want, e.Got)
+}</span>
+
+// Math Errors: a well-formed Operation with no finite real Result (ADR-0004).
+var (
+        // ErrDivisionByZero is returned when an Operation would divide by zero.
+        ErrDivisionByZero = errors.New("division by zero")
+        // ErrInvalidOperand is returned when an Operand is outside the Operator's domain
+        // (the Result would not be a real number).
+        ErrInvalidOperand = errors.New("operand outside the operator's domain")
+        // ErrOverflow is returned when the Result is too large to represent.
+        ErrOverflow = errors.New("result too large")
+)
+
+// operator is a registry entry: how many Operands it takes, an optional domain
+// check that reports a Math Error before evaluating, and how to evaluate them.
+type operator struct {
+        arity int
+        check func(operands []float64) error
+        eval  func(operands []float64) float64
+}
+
+// registry holds every supported Operator. Adding an Operator is one entry here.
+var registry = map[string]operator{
+        "add":      {arity: 2, eval: func(o []float64) float64 <span class="cov8" title="1">{ return o[0] + o[1] }</span>},
+        "subtract": {arity: 2, eval: func(o []float64) float64 <span class="cov8" title="1">{ return o[0] - o[1] }</span>},
+        "multiply": {arity: 2, eval: func(o []float64) float64 <span class="cov8" title="1">{ return o[0] * o[1] }</span>},
+        "divide":   {arity: 2, check: nonZeroDivisor, eval: func(o []float64) float64 <span class="cov8" title="1">{ return o[0] / o[1] }</span>},
+        // percentage(a, b) is "a percent of b". It is context-free: the app picks b
+        // from the Chain (ADR-0002), e.g. percentage(10, 1) for a plain ÷100.
+        // Dividing first avoids a spurious overflow in the a×b product.
+        "percentage": {arity: 2, eval: func(o []float64) float64 <span class="cov8" title="1">{ return o[0] / 100 * o[1] }</span>},
+        // A negative base with a fractional exponent yields NaN → ErrInvalidOperand (via Evaluate).
+        "power": {arity: 2, check: nonZeroBaseForNegativeExponent, eval: func(o []float64) float64 <span class="cov8" title="1">{ return math.Pow(o[0], o[1]) }</span>},
+        // √ of a negative yields NaN → ErrInvalidOperand (via Evaluate).
+        "sqrt": {arity: 1, eval: func(o []float64) float64 <span class="cov8" title="1">{ return math.Sqrt(o[0]) }</span>},
+}
+
+func nonZeroDivisor(o []float64) error <span class="cov8" title="1">{
+        if o[1] == 0 </span><span class="cov8" title="1">{
+                return ErrDivisionByZero
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// nonZeroBaseForNegativeExponent: 0 raised to a negative power is 1 ÷ 0ⁿ, a division by zero
+// (math.Pow would return +Inf, which would otherwise be reported as an overflow).
+func nonZeroBaseForNegativeExponent(o []float64) error <span class="cov8" title="1">{
+        if o[0] == 0 &amp;&amp; o[1] &lt; 0 </span><span class="cov8" title="1">{
+                return ErrDivisionByZero
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Evaluate applies the named Operator to the Operands and returns the Result.
+// It never returns a non-finite Result: NaN becomes ErrInvalidOperand and
+// ±Inf becomes ErrOverflow, unless the Operator's own check reported a more
+// specific Math Error first.
+func Evaluate(name string, operands []float64) (float64, error) <span class="cov8" title="1">{
+        op, ok := registry[name]
+        if !ok </span><span class="cov8" title="1">{
+                return 0, &amp;UnknownOperatorError{Operator: name}
+        }</span>
+        <span class="cov8" title="1">if len(operands) != op.arity </span><span class="cov8" title="1">{
+                return 0, &amp;OperandCountError{Operator: name, Want: op.arity, Got: len(operands)}
+        }</span>
+        <span class="cov8" title="1">if op.check != nil </span><span class="cov8" title="1">{
+                if err := op.check(operands); err != nil </span><span class="cov8" title="1">{
+                        return 0, err
+                }</span>
+        }
+        <span class="cov8" title="1">result := op.eval(operands)
+        switch </span>{
+        case math.IsNaN(result):<span class="cov8" title="1">
+                return 0, ErrInvalidOperand</span>
+        case math.IsInf(result, 0):<span class="cov8" title="1">
+                return 0, ErrOverflow</span>
+        }
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+// OperatorInfo describes a supported Operator as advertised to clients: its name and
+// how many Operands it takes. Name is a plain string because clients may receive
+// Operators they don't know yet (the frontend's drift check relies on that).
+type OperatorInfo struct {
+        Name  string `json:"name"`
+        Arity int    `json:"arity"`
+}
+
+// Operators lists every supported Operator, sorted by name, straight from the registry.
+func Operators() []OperatorInfo <span class="cov8" title="1">{
+        infos := make([]OperatorInfo, 0, len(registry))
+        for name, entry := range registry </span><span class="cov8" title="1">{
+                infos = append(infos, OperatorInfo{Name: name, Arity: entry.arity})
+        }</span>
+        <span class="cov8" title="1">slices.SortFunc(infos, func(a, b OperatorInfo) int </span><span class="cov8" title="1">{ return cmp.Compare(a.Name, b.Name) }</span>)
+        <span class="cov8" title="1">return infos</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

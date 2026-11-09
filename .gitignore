@@ -6,9 +6,8 @@ frontend/dist/
 # Local env
 .env
 
-# Generated coverage (committed reports are added deliberately, see #12)
+# Coverage: the HTML reports under coverage/ are committed (#12); raw profiles are not.
 backend/coverage.out
-coverage/
 
 # OS / editor
 .DS_Store
