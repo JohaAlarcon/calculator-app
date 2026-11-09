@@ -1,5 +1,13 @@
 /** Operators the calculator service understands (see CONTEXT.md). */
-export type Operator = 'add' | 'subtract' | 'multiply' | 'divide'
+export type Operator = BinaryOperator | 'percentage'
+
+/** Operators entered between two Operands, which can be pending in the Chain. */
+export type BinaryOperator = 'add' | 'subtract' | 'multiply' | 'divide'
+
+/** + and −: the Operators after which % means "percent of the left Operand" (ADR-0002). */
+export function isAdditive(operator: BinaryOperator): boolean {
+  return operator === 'add' || operator === 'subtract'
+}
 
 /** The symbol shown for each Operator on keys and in the Pending Operation line. */
 export const OPERATOR_SYMBOLS: Record<Operator, string> = {
@@ -7,6 +15,7 @@ export const OPERATOR_SYMBOLS: Record<Operator, string> = {
   subtract: '−',
   multiply: '×',
   divide: '÷',
+  percentage: '%',
 }
 
 /** One Operator applied to its Operands; the unit the service evaluates (ADR-0001). */

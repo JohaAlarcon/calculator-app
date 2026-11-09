@@ -11,10 +11,11 @@ interface FakeServiceOptions {
   operators?: OperatorInfo[] | 'unavailable' | 'unreachable' | 'malformed'
 }
 
-const ALL_BASIC_OPERATORS: OperatorInfo[] = [
+const ALL_OPERATORS: OperatorInfo[] = [
   { name: 'add', arity: 2 },
   { name: 'divide', arity: 2 },
   { name: 'multiply', arity: 2 },
+  { name: 'percentage', arity: 2 },
   { name: 'subtract', arity: 2 },
 ]
 
@@ -28,7 +29,7 @@ export type FakeFailure = { status: number; code: string; message: string } | 'u
  */
 export function installFakeCalculatorService(
   known: Array<[Operation, number | FakeFailure]>,
-  { operators = ALL_BASIC_OPERATORS }: FakeServiceOptions = {},
+  { operators = ALL_OPERATORS }: FakeServiceOptions = {},
 ) {
   const received: Operation[] = []
   let operatorListRequests = 0
