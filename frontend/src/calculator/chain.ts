@@ -1,3 +1,10 @@
+import {
+  formatResult,
+  formatTypedOperand,
+  MAX_ENTRY_LENGTH,
+  MAX_ENTRY_SIGNIFICANT_DIGITS,
+  significantDigits,
+} from './numbers'
 import { isAdditive, OPERATOR_SYMBOLS, type BinaryOperator, type Operation } from './operation'
 
 /** The most recently completed Operation's Operator and right Operand, re-applied by a repeated =. */
@@ -10,6 +17,8 @@ export interface LastOperation {
 export interface Pending {
   leftOperand: number
   operator: BinaryOperator
+  /** Whether the left Operand is a Result (shown rounded) or a typed number (shown normalised). */
+  leftOperandIsResult: boolean
 }
 
 /**
@@ -26,8 +35,10 @@ export type EntryPhase = 'typing' | 'awaitingRightOperand' | 'showingValue'
  * Evaluation is strictly left to right with immediate execution (ADR-0003).
  */
 export interface ChainState {
-  /** The number on the display: being typed, or the last Result. */
+  /** The number on the display: being typed, or the last Result (raw, unrounded). */
   entry: string
+  /** True when the entry is a Result from the service; it is then shown rounded (see entryText). */
+  entryIsResult: boolean
   /** The Pending Operation, or null when none is pending. */
   pending: Pending | null
   /**
@@ -62,6 +73,7 @@ export type ChainAction =
 
 export const initialChain: ChainState = {
   entry: '0',
+  entryIsResult: false,
   pending: null,
   lastOperation: null,
   entryPhase: 'typing',
@@ -89,17 +101,23 @@ function applyKey(current: ChainState, action: ChainAction): ChainState {
   const state = current.error === null || action.type === 'failed' ? current : { ...current, error: null }
   switch (action.type) {
     case 'digit': {
-      const typing = { ...state, entryPhase: 'typing' as const }
+      const typing = { ...state, entryPhase: 'typing' as const, entryIsResult: false }
       if (state.entryPhase !== 'typing' || state.entry === '0') return { ...typing, entry: action.digit }
       if (state.entry === '-0') return { ...typing, entry: `-${action.digit}` }
-      return { ...typing, entry: state.entry + action.digit }
+      const longer = state.entry + action.digit
+      if (significantDigits(longer) > MAX_ENTRY_SIGNIFICANT_DIGITS || longer.length > MAX_ENTRY_LENGTH) {
+        return state // further digits are ignored
+      }
+      return { ...typing, entry: longer }
     }
     case 'decimalPoint':
-      if (state.entryPhase !== 'typing') return { ...state, entry: '0.', entryPhase: 'typing' }
+      if (state.entryPhase !== 'typing') return { ...state, entry: '0.', entryPhase: 'typing', entryIsResult: false }
       return state.entry.includes('.') ? state : { ...state, entry: `${state.entry}.` }
     case 'toggleSign':
       // Right after an Operator, ± starts a negative right Operand; otherwise it negates the shown number.
-      if (state.entryPhase === 'awaitingRightOperand') return { ...state, entry: '-0', entryPhase: 'typing' }
+      if (state.entryPhase === 'awaitingRightOperand') {
+        return { ...state, entry: '-0', entryPhase: 'typing', entryIsResult: false }
+      }
       return { ...state, entry: state.entry.startsWith('-') ? state.entry.slice(1) : `-${state.entry}` }
     case 'backspace': {
       if (state.entryPhase !== 'typing') return state // only a number being typed is editable
@@ -113,23 +131,25 @@ function applyKey(current: ChainState, action: ChainAction): ChainState {
       }
       return {
         ...state,
-        pending: { leftOperand: Number(state.entry), operator: action.operator },
+        pending: { leftOperand: Number(state.entry), operator: action.operator, leftOperandIsResult: state.entryIsResult },
         entryPhase: 'awaitingRightOperand',
       }
     case 'continueChain':
       return {
         ...state,
         entry: String(action.result),
-        pending: { leftOperand: action.result, operator: action.operator },
+        entryIsResult: true,
+        pending: { leftOperand: action.result, operator: action.operator, leftOperandIsResult: true },
         entryPhase: 'awaitingRightOperand',
         awaitingResult: false,
       }
     case 'percentApplied':
-      return { ...state, entry: String(action.result), entryPhase: 'showingValue', awaitingResult: false }
+      return { ...state, entry: String(action.result), entryIsResult: true, entryPhase: 'showingValue', awaitingResult: false }
     case 'result':
       return {
         ...state,
         entry: String(action.result),
+        entryIsResult: true,
         pending: null,
         lastOperation: action.lastOperation,
         entryPhase: 'showingValue',
@@ -201,5 +221,16 @@ export function percentageOperation(state: ChainState): Operation | null {
 /** Text of the Pending Operation line, e.g. "12 ÷"; empty when nothing is pending. */
 export function pendingOperationText(state: ChainState): string {
   if (state.pending === null) return ''
-  return `${state.pending.leftOperand} ${OPERATOR_SYMBOLS[state.pending.operator]}`
+  const { leftOperand, leftOperandIsResult, operator } = state.pending
+  const left = leftOperandIsResult ? formatResult(leftOperand) : formatTypedOperand(leftOperand)
+  return `${left} ${OPERATOR_SYMBOLS[operator]}`
+}
+
+/**
+ * The entry as shown: a Result rounded by formatResult; a number being typed exactly as typed
+ * (so "5." and "-0" stay visible while typing); otherwise a typed Operand, normalised.
+ */
+export function entryText(state: ChainState): string {
+  if (state.entryIsResult) return formatResult(Number(state.entry))
+  return state.entryPhase === 'typing' ? state.entry : formatTypedOperand(Number(state.entry))
 }

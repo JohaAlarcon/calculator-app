@@ -3,13 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import type { Operation } from './calculator/operation'
+import { operation } from './test/operations'
 import { installFakeCalculatorService, type FakeFailure } from './test/fakeCalculatorService'
 import { display, pendingOperationLine, press } from './test/keys'
 
-const operation = (operator: Operation['operation'], a: number, b: number): Operation => ({
-  operation: operator,
-  operands: [a, b],
-})
 
 describe('Percentage key: phone-calculator convention (ADR-0002)', () => {
   it.each([
