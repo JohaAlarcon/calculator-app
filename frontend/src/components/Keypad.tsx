@@ -14,6 +14,8 @@ interface KeypadProps {
   onClear: () => void
 }
 
+const UNAVAILABLE_HINT = 'Not supported by the calculator service'
+
 /** Static keypad (spec #1); rows of four, binary Operators down the right-hand column. */
 export function Keypad(props: KeypadProps) {
   const { locked, isAvailable, onDigit, onDecimalPoint, onToggleSign, onBackspace, onOperator, onPercent, onEquals, onClear } =
@@ -29,7 +31,7 @@ export function Keypad(props: KeypadProps) {
 
   return (
     // A disabled fieldset disables every key inside it.
-    <fieldset className="keypad" disabled={locked}>
+    <fieldset className="keypad" aria-label="Keypad" disabled={locked}>
       <button type="button" className="key key--function" aria-label="clear" onClick={onClear}>
         C
       </button>
@@ -71,7 +73,7 @@ export function Keypad(props: KeypadProps) {
 }
 
 interface OperatorKeyProps {
-  /** The service Operator this key needs; the key is disabled if the service doesn't list it. */
+  /** The service Operator this key needs; the key is marked unavailable if the service doesn't list it. */
   operator: Operator
   /** Accessible name; defaults to the Operator's name. */
   label?: string
@@ -82,14 +84,17 @@ interface OperatorKeyProps {
 
 function OperatorKey({ operator, label = operator, className, isAvailable, onPress }: OperatorKeyProps) {
   const available = isAvailable(operator)
+  // aria-disabled (not disabled) keeps the key focusable, so keyboard and screen-reader users
+  // can still reach the explanation of why it is unavailable; the title is both the mouse
+  // tooltip and the accessible description.
   return (
     <button
       type="button"
       className={className}
       aria-label={label}
-      disabled={!available}
-      title={available ? undefined : 'Not supported by the calculator service'}
-      onClick={onPress}
+      aria-disabled={available ? undefined : true}
+      title={available ? undefined : UNAVAILABLE_HINT}
+      onClick={available ? onPress : undefined}
     >
       {OPERATOR_SYMBOLS[operator]}
     </button>

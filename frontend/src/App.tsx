@@ -2,12 +2,15 @@ import { Display } from './components/Display'
 import { ErrorBanner } from './components/ErrorBanner'
 import { Keypad } from './components/Keypad'
 import { useCalculator } from './calculator/useCalculator'
+import { useKeyboard } from './calculator/useKeyboard'
 import { useOperatorAvailability } from './calculator/useOperatorAvailability'
 import './styles.css'
 
 export default function App() {
   const calculator = useCalculator()
   const isAvailable = useOperatorAvailability()
+
+  useKeyboard(calculator, isAvailable)
 
   return (
     <main className="calculator" aria-label="Calculator">
