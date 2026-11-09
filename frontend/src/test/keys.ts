@@ -13,6 +13,8 @@ const KEY_NAMES: Record<string, string> = {
   '±': 'toggle sign',
   '⌫': 'backspace',
   '%': 'percent',
+  'xʸ': 'power',
+  '√': 'square root',
 }
 
 /** Presses a space-separated key sequence, e.g. `press(user, '12 ÷ 4 =')` (digits may be grouped). */

@@ -62,8 +62,8 @@ export type ChainAction =
   | { type: 'operator'; operator: BinaryOperator }
   /** The Pending Operation was resolved to `result`, which becomes the left Operand of `operator`. */
   | { type: 'continueChain'; result: number; operator: BinaryOperator }
-  /** % was applied: `result` becomes the (right) Operand on the display. */
-  | { type: 'percentApplied'; result: number }
+  /** A unary Operator (%, √) was applied: `result` becomes the (right) Operand on the display. */
+  | { type: 'unaryApplied'; result: number }
   /** = produced `result`; `lastOperation` is what it applied, re-applied by the next =. */
   | { type: 'result'; result: number; lastOperation: LastOperation }
   | { type: 'requestStarted' }
@@ -143,7 +143,7 @@ function applyKey(current: ChainState, action: ChainAction): ChainState {
         entryPhase: 'awaitingRightOperand',
         awaitingResult: false,
       }
-    case 'percentApplied':
+    case 'unaryApplied':
       return { ...state, entry: String(action.result), entryIsResult: true, entryPhase: 'showingValue', awaitingResult: false }
     case 'result':
       return {
@@ -233,4 +233,10 @@ export function pendingOperationText(state: ChainState): string {
 export function entryText(state: ChainState): string {
   if (state.entryIsResult) return formatResult(Number(state.entry))
   return state.entryPhase === 'typing' ? state.entry : formatTypedOperand(Number(state.entry))
+}
+
+/** The Operation the √ key sends: the square root of the entry, at once. Null while an error is shown. */
+export function squareRootOperation(state: ChainState): Operation | null {
+  if (state.error !== null) return null
+  return { operation: 'sqrt', operands: [Number(state.entry)] }
 }

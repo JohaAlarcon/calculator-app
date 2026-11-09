@@ -17,6 +17,7 @@ const OPERATOR_KEYS: Record<string, BinaryOperator> = {
   x: 'multiply',
   X: 'multiply',
   '/': 'divide',
+  '^': 'power',
 }
 
 const FIXED_KEYS: Record<string, KeyCommand> = {

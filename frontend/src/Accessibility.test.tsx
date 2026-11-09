@@ -9,24 +9,26 @@ import { exactly, operation } from './test/operations'
 const KEY_NAMES = [
   'clear',
   'backspace',
-  'percent',
   'divide',
+  'square root',
+  'power',
+  'percent',
+  'multiply',
   '7',
   '8',
   '9',
-  'multiply',
+  'subtract',
   '4',
   '5',
   '6',
-  'subtract',
+  'add',
   '1',
   '2',
   '3',
-  'add',
+  'equals',
   'toggle sign',
   '0',
   'decimal point',
-  'equals',
 ]
 
 describe('Accessibility', () => {
@@ -61,7 +63,6 @@ describe('Accessibility', () => {
 
     await user.tab() // clear
     await user.tab() // backspace
-    await user.tab() // percent (also unavailable)
     await user.tab()
     expect(divide).toHaveFocus()
     expect(divide).toHaveAccessibleDescription('Not supported by the calculator service')

@@ -56,10 +56,23 @@ var registry = map[string]operator{
 	// from the Chain (ADR-0002), e.g. percentage(10, 1) for a plain ÷100.
 	// Dividing first avoids a spurious overflow in the a×b product.
 	"percentage": {arity: 2, eval: func(o []float64) float64 { return o[0] / 100 * o[1] }},
+	// A negative base with a fractional exponent yields NaN → ErrInvalidOperand (via Evaluate).
+	"power": {arity: 2, check: nonZeroBaseForNegativeExponent, eval: func(o []float64) float64 { return math.Pow(o[0], o[1]) }},
+	// √ of a negative yields NaN → ErrInvalidOperand (via Evaluate).
+	"sqrt": {arity: 1, eval: func(o []float64) float64 { return math.Sqrt(o[0]) }},
 }
 
 func nonZeroDivisor(o []float64) error {
 	if o[1] == 0 {
+		return ErrDivisionByZero
+	}
+	return nil
+}
+
+// nonZeroBaseForNegativeExponent: 0 raised to a negative power is 1 ÷ 0ⁿ, a division by zero
+// (math.Pow would return +Inf, which would otherwise be reported as an overflow).
+func nonZeroBaseForNegativeExponent(o []float64) error {
+	if o[0] == 0 && o[1] < 0 {
 		return ErrDivisionByZero
 	}
 	return nil

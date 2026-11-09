@@ -8,6 +8,7 @@ import {
   operationToResolveBeforeOperator,
   pendingOperationText,
   percentageOperation,
+  squareRootOperation,
 } from './chain'
 import type { BinaryOperator, Operation } from './operation'
 
@@ -39,11 +40,14 @@ export function useCalculator() {
     await resolve(operation, (result) => dispatch({ type: 'continueChain', result, operator }))
   }
 
-  async function pressPercent() {
-    const operation = percentageOperation(state)
+  /** A unary Operator (%, √): its Result becomes the right Operand on the display. */
+  async function applyUnary(operation: Operation | null) {
     if (!operation) return
-    await resolve(operation, (result) => dispatch({ type: 'percentApplied', result }))
+    await resolve(operation, (result) => dispatch({ type: 'unaryApplied', result }))
   }
+
+  const pressPercent = () => applyUnary(percentageOperation(state))
+  const pressSquareRoot = () => applyUnary(squareRootOperation(state))
 
   async function pressEquals() {
     const equals = equalsOperation(state)
@@ -64,6 +68,7 @@ export function useCalculator() {
     pressBackspace: () => dispatch({ type: 'backspace' }),
     pressOperator,
     pressPercent,
+    pressSquareRoot,
     pressEquals,
     pressClear: () => dispatch({ type: 'clear' }),
   }

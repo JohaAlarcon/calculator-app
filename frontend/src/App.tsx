@@ -25,6 +25,7 @@ export default function App() {
         onBackspace={calculator.pressBackspace}
         onOperator={calculator.pressOperator}
         onPercent={calculator.pressPercent}
+        onSquareRoot={calculator.pressSquareRoot}
         onEquals={calculator.pressEquals}
         onClear={calculator.pressClear}
       />
