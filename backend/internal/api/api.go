@@ -4,7 +4,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/JohaAlarcon/calculator-app/backend/internal/calculator"
@@ -20,11 +20,11 @@ type calculateResponse struct {
 	Result float64 `json:"result"`
 }
 
-// NewRouter returns the service's HTTP handler with all routes registered.
-func NewRouter() http.Handler {
+// NewRouter returns the service's HTTP handler: all routes, wrapped in Middleware.
+func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/v1/calculate", handleCalculate)
-	return mux
+	return ServiceMiddleware(cfg)(mux)
 }
 
 func handleCalculate(w http.ResponseWriter, r *http.Request) {
@@ -46,11 +46,35 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(body); err != nil {
-		log.Printf("encode response: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		slog.Error("encode response", "error", err)
+		writeInternalError(w) // re-enters writeJSON with a body that always encodes
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
+}
+
+// errorCode is a stable, machine-readable error identifier; part of the public API contract (ADR-0004).
+type errorCode string
+
+const codeInternalError errorCode = "INTERNAL_ERROR"
+
+// errorResponse is the JSON error shape from spec #1: {"error":{"code","message"}}.
+// handleCalculate's validation errors still use plain text until the Math Errors ticket (#6).
+type errorResponse struct {
+	Error errorBody `json:"error"`
+}
+
+type errorBody struct {
+	Code    errorCode `json:"code"`
+	Message string    `json:"message"`
+}
+
+func writeError(w http.ResponseWriter, status int, code errorCode, message string) {
+	writeJSON(w, status, errorResponse{Error: errorBody{Code: code, Message: message}})
+}
+
+func writeInternalError(w http.ResponseWriter) {
+	writeError(w, http.StatusInternalServerError, codeInternalError, "Internal server error")
 }
