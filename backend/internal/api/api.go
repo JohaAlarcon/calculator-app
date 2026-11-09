@@ -20,10 +20,12 @@ type calculateResponse struct {
 	Result float64 `json:"result"`
 }
 
-// NewRouter returns the service's HTTP handler: all routes, wrapped in Middleware.
+// NewRouter returns the service's HTTP handler: all routes, wrapped in ServiceMiddleware.
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/v1/calculate", handleCalculate)
+	mux.HandleFunc("GET /api/v1/operations", handleListOperators)
+	mux.HandleFunc("GET /healthz", handleHealthz)
 	return ServiceMiddleware(cfg)(mux)
 }
 
@@ -39,6 +41,20 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, calculateResponse{calculateRequest: req, Result: result})
+}
+
+// operatorsResponse is the body of GET /api/v1/operations; the path and the
+// "operations" key are fixed by the API contract (spec #1).
+type operatorsResponse struct {
+	Operators []calculator.OperatorInfo `json:"operations"`
+}
+
+func handleListOperators(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, operatorsResponse{Operators: calculator.Operators()})
+}
+
+func handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // writeJSON encodes before writing the status, so an unencodable body
